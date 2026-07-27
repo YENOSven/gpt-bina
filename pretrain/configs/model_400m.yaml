@@ -1,0 +1,25 @@
+# ~406M params: D_MODEL=1024, NUM_HEADS=16, NUM_LAYERS=28, BLOCK_SIZE=2048
+# (see columbina_pretrain.model.CONFIG_406M for the exact loaded values -- this file documents
+# the target and the run-level hyperparameters that sit alongside the architecture, not a
+# second source of truth for the architecture itself)
+model:
+  config_name: 406m
+
+optimizer:
+  peak_lr: 6.0e-4
+  weight_decay: 0.1
+  betas: [0.9, 0.95]
+  max_grad_norm: 1.0
+
+schedule:
+  warmup_steps: 500          # real run: a few hundred steps, per module 31's recap note
+  total_steps: null          # set once the final corpus token count is known (Phase 2):
+                              #   total_steps = total_tokens / (micro_batch_size * grad_accum_steps * block_size)
+
+batch:
+  micro_batch_size: null     # real run: as large as the session's GPU memory allows
+  grad_accum_steps: null     # real run: tuned so micro_batch * grad_accum * block_size hits the target effective batch
+
+checkpoint:
+  checkpoint_every_minutes: 20   # within the user's stated 15-30 minute range
+  milestone_every_steps: 2000

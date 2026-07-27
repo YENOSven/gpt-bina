@@ -8,3 +8,5 @@ venv/
 *.ckpt
 *.bin
 data/
+.pytest_cache/
+pretrain/.resume_verify_scratch/

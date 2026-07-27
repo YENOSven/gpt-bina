@@ -1,0 +1,38 @@
+# Target token budget (see pretrain/README.md and the plan for the full reasoning).
+# Not yet wired to data_pipeline.py -- data_pipeline.py and the ingest manifest are Phase 2
+# work; this file documents the target ratios agreed on so Phase 2 has one place to implement
+# against, not a second decision point.
+
+stage_1_pretrain:
+  general_english:
+    target_tokens: 4_000_000_000
+    sources:
+      - {name: fineweb_edu, hf_dataset: "HuggingFaceFW/fineweb-edu", config: "sample-10BT", fraction: 0.70}
+      - {name: openwebtext, hf_dataset: "Skylion007/openwebtext", fraction: 0.30}
+  natural_dialogue:
+    target_tokens: 2_500_000_000   # realistic range 1.5-3B after dedup -- see plan's Risks section
+    sources:
+      - {name: open_subtitles, hf_dataset: "bigscience/open_subtitles_monolingual", note: "English slice, heavy dedup required (30-60% typical duplicate content)"}
+      - {name: daily_dialog, note: "small style-diversity supplement, verify current HF id at implementation time"}
+      - {name: empathetic_dialogues, note: "small style-diversity supplement, verify current HF id at implementation time"}
+  split: {train: 0.98, val: 0.01, test: 0.01}
+
+stage_2_sft:
+  reused_columbina_data:
+    target_tokens: 2_000_000  # approximate, existing sibling-project data
+    sources:
+      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/canon/qwen25_v10_sft/train.jsonl"
+      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/canon/qwen25_v10_sft/validation.jsonl"
+      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/gold_examples.jsonl"
+      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/contrastive_examples.jsonl"
+  locally_generated_teacher_conversation:
+    target_tokens: 20_000_000
+    generator: "C:/Models/columbina-qwen25-7b-dpo-v11 via llama.cpp, local, no API spend"
+  locally_generated_difficult_examples:
+    target_tokens: 10_000_000
+    generator: "same local model, prompted for topic-changes/vague-messages/emotional-responses/short-replies/repetition-avoidance"
+    filter: "C:/Models/columbina-qwen25-7b-dpo-v11/data_profile.json 34-category rejection taxonomy"
+
+stage_3_dpo:
+  status: deferred
+  note: "data source decided after stage 2 exists -- build preference pairs from stage 2's own outputs, don't assume the 7B-era pairs transfer"
