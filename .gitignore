@@ -10,3 +10,4 @@ venv/
 data/
 .pytest_cache/
 pretrain/.resume_verify_scratch/
+pretrain/_local_drive_stub/
