@@ -33,7 +33,8 @@ def save(manifest, path):
         raise
 
 
-def new_entry(hf_dataset, config, hf_split, target_train_tokens, val_fraction=0.01, test_fraction=0.01):
+def new_entry(hf_dataset, config, hf_split, target_train_tokens, val_fraction=0.01, test_fraction=0.01,
+              text_field="text"):
     """One entry = one continuous pass through one HF streaming source. val and test are
     carved off the FRONT of that single stream first (phases "val" then "test"), and train
     continues from wherever that leaves off -- so there's only ever one stream_state to track
@@ -49,6 +50,7 @@ def new_entry(hf_dataset, config, hf_split, target_train_tokens, val_fraction=0.
         "hf_dataset": hf_dataset,
         "config": config,
         "hf_split": hf_split,
+        "text_field": text_field,
         "phase": "val",
         "targets": {"val": target_val, "test": target_test, "train": target_train_tokens},
         "tokens_ingested": {"val": 0, "test": 0, "train": 0},

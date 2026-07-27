@@ -29,7 +29,7 @@ stage_1_pretrain:
       - {name: babylm_open_subtitles, hf_dataset: "deven367/babylm-100M-open-subtitles", measured_tokens: 40_215_837, note: "individual subtitle lines, not full documents"}
       - {name: babylm_switchboard, hf_dataset: "deven367/babylm-100M-switchboard", measured_tokens: 1_484_768, note: "real telephone conversation transcripts"}
       - {name: babylm_bnc_spoken, hf_dataset: "deven367/babylm-100M-bnc-spoken", measured_tokens: 10_404_609, note: "British National Corpus spoken/conversational portion"}
-      - {name: empathetic_dialogues, hf_dataset: "facebook/empathetic_dialogues", measured_tokens: 357_322}
+      - {name: empathetic_dialogues, hf_dataset: "facebook/empathetic_dialogues", measured_tokens: 357_322, text_field: "utterance", note: "each row is one conversational turn, not a document -- different schema than the other three sources here (which all use a plain 'text' field), caught by real end-to-end testing (KeyError: 'text')"}
   split: {train: 0.98, val: 0.01, test: 0.01}
   # operational note (found during Phase 2 verification): repeated load_dataset() calls in a
   # short window hit HuggingFace's anonymous-IP rate limit (HTTP 429). Set an HF_TOKEN env var

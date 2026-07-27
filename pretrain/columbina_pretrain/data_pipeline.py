@@ -1,13 +1,58 @@
 import os
 
 import numpy as np
+import yaml
 from datasets import load_dataset
 
 from columbina_pretrain import data_manifest as dm
 from columbina_pretrain.tokenizer import EOT, encode
 
+# stage_1_pretrain categories in configs/data_mix.yaml use one of two ways to size a source's
+# individual target from its category total: "fraction" (general_english: split a big shared
+# target by ratio) or "measured_tokens" (natural_dialogue: sources are small enough that we
+# just take ~everything each one actually has, already measured directly rather than estimated)
+GENERAL_ENGLISH = "general_english"
+NATURAL_DIALOGUE = "natural_dialogue"
 
-def ingest_source(manifest, source_name, shard_dir, tokens_per_shard, text_field="text", max_tokens_this_call=None):
+
+def load_mix_config(yaml_path):
+    with open(yaml_path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def init_manifest_from_mix(manifest, mix_config):
+    """Ensures a data_manifest entry exists for every source listed under
+    configs/data_mix.yaml's stage_1_pretrain, computing each source's own
+    target_train_tokens from its category. Never resets an already-in-progress entry
+    (get_or_create_entry's existing behavior) -- safe to call at the top of every session."""
+    stage = mix_config["stage_1_pretrain"]
+    val_fraction = stage["split"]["val"]
+    test_fraction = stage["split"]["test"]
+
+    for src in stage[GENERAL_ENGLISH]["sources"]:
+        target = int(stage[GENERAL_ENGLISH]["target_tokens"] * src["fraction"])
+        dm.get_or_create_entry(manifest, src["name"], src["hf_dataset"], src.get("config"), "train",
+                                target, val_fraction=val_fraction, test_fraction=test_fraction,
+                                text_field=src.get("text_field", "text"))
+
+    for src in stage[NATURAL_DIALOGUE]["sources"]:
+        # take ~everything measured (train+val+test together should land close to the source's
+        # real total rather than deliberately falling short of a scarce resource)
+        target = int(src["measured_tokens"] / (1 + val_fraction + test_fraction))
+        dm.get_or_create_entry(manifest, src["name"], src["hf_dataset"], src.get("config"), "train",
+                                target, val_fraction=val_fraction, test_fraction=test_fraction,
+                                text_field=src.get("text_field", "text"))
+
+    return manifest
+
+
+def all_source_names(mix_config):
+    stage = mix_config["stage_1_pretrain"]
+    return ([s["name"] for s in stage[GENERAL_ENGLISH]["sources"]]
+            + [s["name"] for s in stage[NATURAL_DIALOGUE]["sources"]])
+
+
+def ingest_source(manifest, source_name, shard_dir, tokens_per_shard, max_tokens_this_call=None):
     """Resumes `manifest[source_name]` from wherever it last left off (fresh start if this is
     the first call), streaming+tokenizing from the underlying HF source and writing shard
     files to `shard_dir`. Mutates `manifest` in place -- call data_manifest.save yourself
@@ -41,7 +86,7 @@ def ingest_source(manifest, source_name, shard_dir, tokens_per_shard, text_field
         shard_tokens = []
         while len(shard_tokens) < budget:
             try:
-                text = next(it)[text_field]
+                text = next(it)[entry.get("text_field", "text")]
             except StopIteration:
                 exhausted = True
                 break
