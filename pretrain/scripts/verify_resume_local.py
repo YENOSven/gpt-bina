@@ -12,6 +12,7 @@ and exercised (loaded and restored every call) but this particular test can't pr
 it matters yet -- that only becomes observable once something stochastic (dropout,
 data shuffling) is added to the loop. Said plainly rather than implied.
 """
+import argparse
 import json
 import subprocess
 import sys
@@ -21,7 +22,7 @@ import numpy as np
 import torch
 
 PRETRAIN_DIR = Path(__file__).resolve().parent.parent
-SCRATCH = PRETRAIN_DIR / ".resume_verify_scratch"
+DEFAULT_SCRATCH = PRETRAIN_DIR / ".resume_verify_scratch"
 
 TOTAL_STEPS = 12
 SPLIT_AT = 6  # first subprocess runs steps 0..SPLIT_AT-1, second resumes and runs the rest
@@ -47,7 +48,14 @@ def make_corpus(path):
 
 
 def main():
-    SCRATCH.mkdir(exist_ok=True)
+    p = argparse.ArgumentParser()
+    p.add_argument("--scratch-dir", default=str(DEFAULT_SCRATCH),
+                    help="where to write the throwaway proof corpus/checkpoints -- pass a "
+                         "Drive-mounted path (e.g. from Colab) to prove the mechanism against "
+                         "real Drive I/O instead of local disk")
+    args = p.parse_args()
+    SCRATCH = Path(args.scratch_dir)
+    SCRATCH.mkdir(parents=True, exist_ok=True)
     corpus_path = SCRATCH / "corpus.bin"
     make_corpus(corpus_path)
 
