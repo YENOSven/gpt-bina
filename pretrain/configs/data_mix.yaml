@@ -1,21 +1,40 @@
 # Target token budget (see pretrain/README.md and the plan for the full reasoning).
-# Not yet wired to data_pipeline.py -- data_pipeline.py and the ingest manifest are Phase 2
-# work; this file documents the target ratios agreed on so Phase 2 has one place to implement
-# against, not a second decision point.
+# Wired to data_pipeline.py / data_manifest.py as of Phase 2 -- these numbers are what
+# generate_data_mix.py (the ingest-driving script, not yet built) will actually target.
+#
+# REVISED from the original plan during Phase 2 real-data investigation: the plan's proposed
+# "bigscience/open_subtitles_monolingual" dataset DOES NOT EXIST on HuggingFace (verified via
+# get_dataset_config_names -> DatasetNotFoundError). Helsinki-NLP/open_subtitles exists but its
+# loader script is broken/limited (only 5 configs resolve, 1 involving English) -- not usable.
+# Real, clean, monolingual English alternatives were checked directly (row counts + actual
+# token counts measured, not estimated): the four sources below total only ~52.5M tokens
+# combined, nowhere near the original 2.5B target. This confirms the plan's own flagged risk:
+# genuinely NATURAL (non-LLM-synthetic) dialogue text isn't available at billion-token scale
+# from convenient HF datasets -- most large "dialogue" datasets (UltraChat, SODA, OpenOrca) are
+# themselves LLM-synthesized. Per the plan's pre-approved contingency (option a): natural_dialogue
+# shrinks to its real achievable size, and general_english grows to absorb the difference,
+# keeping the total pretraining budget at ~6.5B tokens -- the "natural" label stays honest
+# rather than being padded out with content that isn't actually natural.
 
 stage_1_pretrain:
   general_english:
-    target_tokens: 4_000_000_000
+    target_tokens: 6_447_500_000  # grown from 4.0B to absorb natural_dialogue's shortfall
     sources:
       - {name: fineweb_edu, hf_dataset: "HuggingFaceFW/fineweb-edu", config: "sample-10BT", fraction: 0.70}
       - {name: openwebtext, hf_dataset: "Skylion007/openwebtext", fraction: 0.30}
   natural_dialogue:
-    target_tokens: 2_500_000_000   # realistic range 1.5-3B after dedup -- see plan's Risks section
+    target_tokens: 52_500_000  # real, measured total -- see the revision note above
     sources:
-      - {name: open_subtitles, hf_dataset: "bigscience/open_subtitles_monolingual", note: "English slice, heavy dedup required (30-60% typical duplicate content)"}
-      - {name: daily_dialog, note: "small style-diversity supplement, verify current HF id at implementation time"}
-      - {name: empathetic_dialogues, note: "small style-diversity supplement, verify current HF id at implementation time"}
+      # each verified directly: load_dataset(..., split="train"), real row/char counts measured
+      - {name: babylm_open_subtitles, hf_dataset: "deven367/babylm-100M-open-subtitles", measured_tokens: 40_215_837, note: "individual subtitle lines, not full documents"}
+      - {name: babylm_switchboard, hf_dataset: "deven367/babylm-100M-switchboard", measured_tokens: 1_484_768, note: "real telephone conversation transcripts"}
+      - {name: babylm_bnc_spoken, hf_dataset: "deven367/babylm-100M-bnc-spoken", measured_tokens: 10_404_609, note: "British National Corpus spoken/conversational portion"}
+      - {name: empathetic_dialogues, hf_dataset: "facebook/empathetic_dialogues", measured_tokens: 357_322}
   split: {train: 0.98, val: 0.01, test: 0.01}
+  # operational note (found during Phase 2 verification): repeated load_dataset() calls in a
+  # short window hit HuggingFace's anonymous-IP rate limit (HTTP 429). Set an HF_TOKEN env var
+  # (free HF account) before running data_prep_session.ipynb for real -- authenticated requests
+  # get a much higher limit.
 
 stage_2_sft:
   reused_columbina_data:
@@ -27,11 +46,13 @@ stage_2_sft:
       - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/contrastive_examples.jsonl"
   locally_generated_teacher_conversation:
     target_tokens: 20_000_000
-    generator: "C:/Models/columbina-qwen25-7b-dpo-v11 via llama.cpp, local, no API spend"
+    generator: "columbina_pretrain/generate_sft_data.py --category teacher_generated -- local llama.cpp, columbina-qwen25-7b-dpo-v11 + base Qwen2.5-7B-Instruct-Q4_K_M, no API spend"
+    status: "built and verified with real generated output (2026-07-27) -- the ~20M-token full run has not been executed yet, that's a multi-day background task"
   locally_generated_difficult_examples:
     target_tokens: 10_000_000
-    generator: "same local model, prompted for topic-changes/vague-messages/emotional-responses/short-replies/repetition-avoidance"
-    filter: "C:/Models/columbina-qwen25-7b-dpo-v11/data_profile.json 34-category rejection taxonomy"
+    generator: "same script, --category difficult_examples, covering topic_change/vague_message/emotional_response/short_reply/repetition_avoidance"
+    filter: "lightweight regex identity-leak filter in generate_sft_data.py -- NOT the sibling project's full 34-category taxonomy scoring, which would need a second LLM call per example (future work)"
+    status: "built and verified with real generated output (2026-07-27) covering all 5 sub-categories -- the ~10M-token full run has not been executed yet"
 
 stage_3_dpo:
   status: deferred

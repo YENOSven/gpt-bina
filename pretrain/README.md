@@ -11,43 +11,85 @@ number below live there, not repeated here.
 
 ## Status
 
-**Phase 0 (local infrastructure) — done.** `columbina_pretrain/model.py`, `checkpoint.py`,
-`tokenizer.py`, `train.py`, and `sft.py` are real importable modules, extracted from modules
-31/32 and generalized. The two things Phase 0 exists to prove are both proven:
+**Phase 0 (local infrastructure) — done.** `model.py`, `checkpoint.py`, `tokenizer.py`,
+`train.py`, `sft.py` extracted from modules 31/32 and generalized. `scripts/verify_resume_local.py`
+proves a killed-and-resumed run is bit-identical to an uninterrupted one across genuinely
+separate subprocesses — caught a real bug doing it (LR schedule's `total_steps` must stay
+fixed for the whole run; `train.py`'s `--session-step-limit` is the fix). `tests/test_checkpoint_roundtrip.py`
+covers `checkpoint.py` in isolation. `sft.py` verified against the real sibling-project data.
 
-- `scripts/verify_resume_local.py` — a training run killed partway through and resumed from
-  its checkpoint produces **bit-identical** losses and parameters to an uninterrupted run
-  (verified across genuinely separate subprocesses, not just in-process object reuse). Caught
-  and fixed a real bug in the process: the LR schedule's cosine decay must be computed against
-  the *whole run's* `total_steps`, not the current session's — an earlier version silently
-  passed a smaller `total_steps` to simulate "stopping early" and it corrupted the schedule
-  shape instead. `train.py`'s `--session-step-limit` is the fix: `total_steps` stays fixed for
-  the life of the run, only `--session-step-limit` differs per daily session.
-- `tests/test_checkpoint_roundtrip.py` — fast in-process unit tests of `checkpoint.py` alone
-  (model/optimizer state, RNG state, atomic-write cleanup). Run via `python -m pytest tests/`.
-- `sft.py` verified against the real sibling-project data (2,232 real examples from
-  `columbina_chat/data/canon/qwen25_v10_sft/train.jsonl`): the loss-mask span decodes back to
-  exactly the assistant turn's text, and a real batch flows through the model and backward
-  pass with no errors. Example lengths in that dataset run 503-632 tokens (character.yaml's
-  system prompt included) — comfortably inside even the 1024-token `124m` config, let alone
-  the real 2048-token `406m` target.
+**Phase 1 (Colab notebook) — built, not yet run in real Colab.** `colab/pretrain_session.ipynb`
+implements the daily test/train/checkpoint/disconnect rhythm, reusing `verify_resume_local.py`
+(now takes `--scratch-dir`) for its TEST gate. Detects Colab vs. local (falls back to local
+paths with a clear notice if opened outside Colab, e.g. in VS Code — real training still needs
+actual Colab, this machine's GPU doesn't have the VRAM for it at this model size). Dry-run
+verified locally end-to-end including a second process correctly resuming a finished run.
+`scripts/mirror_checkpoints.ps1` (Drive → `C:/Models`, milestones only) built and its
+error-handling verified; needs `rclone config` (Google Drive OAuth) to actually do anything.
 
-**Not done yet — everything past Phase 0.** No GitHub remote exists (needs the user's account
-— `gh` CLI isn't installed locally and OAuth login needs a browser). No Colab notebook exists
-yet. No real corpus has been downloaded/tokenized (`data_pipeline.py` doesn't exist yet —
-`configs/data_mix.yaml` documents the target mix, nothing reads it yet). No local SFT-data
-generation has run. The `406m` model config has never actually been trained, even briefly —
-everything proven so far used the `tiny`/`124m` configs for speed.
+**Phase 2 (real data pipeline) — core infrastructure built and verified against real data;
+the actual multi-day/week ingestion runs have not been executed yet.**
+- `data_manifest.py` — cross-session ingest progress tracking (phase-sequenced val→test→train,
+  all off one continuing HF stream, so there's only ever one `stream_state` to persist, not
+  three). Fully unit-tested (`tests/test_data_manifest.py`).
+- `data_pipeline.py` — resumable streaming/tokenizing/shard-writing (`ingest_source`) +
+  final shuffle-and-combine into training-ready `.bin` files (`combine_shards_to_corpus`).
+  **Verified against real `HuggingFaceFW/fineweb-edu` data** (`scripts/verify_data_pipeline.py`):
+  deliberately interrupted mid-ingest, manifest reloaded from disk as a fresh dict (simulating
+  a separate session), resumed correctly through all three phases, combined into real decodable
+  corpus files. Uses `datasets` 3.1.0's native `IterableDataset.state_dict()`/`load_state_dict()`
+  — verified directly to actually round-trip correctly before building anything around it, for
+  both FineWeb-Edu and OpenWebText.
+- **Real, load-bearing correction to the original plan**: the proposed
+  `bigscience/open_subtitles_monolingual` dataset does not exist on HuggingFace, and
+  `Helsinki-NLP/open_subtitles`'s loader script is broken (5 configs total, 1 involving
+  English). After checking real alternatives directly (not estimating), genuinely clean
+  monolingual English "natural dialogue" sources total only **~52.5M tokens** (four sources:
+  `deven367/babylm-100M-open-subtitles`, `-switchboard`, `-bnc-spoken`,
+  `facebook/empathetic_dialogues` — exact counts in `configs/data_mix.yaml`), nowhere near the
+  original 2.5B target. This confirms the plan's own flagged risk with real numbers: natural
+  (non-LLM-synthetic) dialogue isn't available at billion-token scale from convenient datasets.
+  Per the plan's pre-approved contingency, `natural_dialogue`'s target shrunk to its real
+  achievable size and `general_english` grew to absorb the difference — total pretraining
+  budget stays ~6.5B tokens, the "natural" label stays honest rather than padded with
+  mislabeled synthetic content.
+- `generate_sft_data.py` — local generation of new Columbina SFT data via `llama_cpp_python`,
+  loading the base `Qwen2.5-7B-Instruct-Q4_K_M` GGUF + the real
+  `columbina-qwen25-7b-dpo-v11` LoRA adapter (both already in `C:\Models\`), self-play (same
+  model plays both "user" and "Columbina" under different system prompts) seeded from a
+  scenario bank covering both the general "teacher-generated" category and all five
+  "difficult examples" sub-categories (topic changes, vague messages, emotional responses,
+  short replies, repetition-avoidance). **Verified with real generated output** — confirmed
+  GPU offload works (~30 tok/s real decode throughput on the local 4060, matching the plan's
+  estimate), confirmed the LoRA-adapted model stays in character (including correctly
+  declining to admit being an AI, matching `character.yaml`'s `output_contract`), and
+  confirmed generated conversations flow correctly through `sft.py`'s real loader/batcher.
+  Quality filter is a lightweight regex identity-leak check, not the sibling project's full
+  34-category taxonomy scoring (that needs a second LLM call per example — real future work,
+  not built here). **The actual ~30M-token generation run has not been executed** — that's a
+  multi-day/week background task for later, separate from proving the script works.
+- Operational note found during verification: repeated `load_dataset()` calls in a short
+  window hit HuggingFace's anonymous-IP rate limit (HTTP 429). Set an `HF_TOKEN` env var
+  before running real ingestion sessions — authenticated requests get a much higher limit.
+
+**Not done yet**: the actual Phase 2 ingestion runs (General English to ~6.45B tokens, natural
+dialogue to ~52.5M, SFT generation to ~30M), a `generate_data_mix.py` driver script that reads
+`configs/data_mix.yaml` and calls `data_pipeline.py`/`generate_sft_data.py` accordingly (right
+now each is invoked directly, no single entry point ties the config file to execution), the
+real ~406M-param training run (Phase 3), SFT (Phase 4), DPO (Phase 5, stretch), local inference
+script (Phase 6). GitHub remote is set up (`github.com/YENOSven/gpt-bina`) and pushed to.
 
 ## Layout
 
 - `columbina_pretrain/` — the importable package (see docstrings/comments in each file for
   what's genuinely non-obvious; the code itself is the reference for what each does).
-- `configs/` — `model_400m.yaml` and `data_mix.yaml` document targets; **neither is wired up
-  to code yet** (train.py's CLI args are the real interface for now).
-- `colab/` — empty, Phase 1.
-- `scripts/verify_resume_local.py` — run this after touching `checkpoint.py` or `train.py`'s
-  training loop; it's the standing proof that resume still works.
+- `configs/` — `model_400m.yaml` (not yet wired to code — `train.py`'s CLI args are the real
+  interface for now) and `data_mix.yaml` (wired to `data_pipeline.py`'s expected inputs, but no
+  driver script reads it automatically yet).
+- `colab/pretrain_session.ipynb` — the daily training driver.
+- `scripts/verify_resume_local.py`, `verify_data_pipeline.py` — run these after touching the
+  respective module; they're the standing proofs those mechanisms still work.
+- `scripts/mirror_checkpoints.ps1` — Drive → `C:/Models` checkpoint mirroring.
 - `tests/` — `python -m pytest tests/` from inside `pretrain/`.
 
 ## Running things locally
@@ -56,5 +98,9 @@ From inside `pretrain/`:
 ```
 python -m pytest tests/
 python scripts/verify_resume_local.py
+python scripts/verify_data_pipeline.py   # needs network; may hit HF rate limits on repeat runs
 ```
-Both are CPU-only and take a few seconds — no GPU needed for anything in Phase 0.
+`generate_sft_data.py` needs `llama_cpp_python` with CUDA support — the sibling Columbina
+project's venv (`C:\Users\alanl\OneDrive\Documents\Columbina\columbina_chat\.venv\`) already
+has a working build; run it through that Python rather than the main environment unless
+`llama_cpp_python` with CUDA is installed there too.
