@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint
 
 
 def split_heads(t, num_heads):
@@ -60,13 +61,15 @@ class TransformerBlock(nn.Module):
 
 
 class GPT(nn.Module):
-    def __init__(self, vocab_size, d_model, num_heads, num_layers, max_seq_len, d_ff=None):
+    def __init__(self, vocab_size, d_model, num_heads, num_layers, max_seq_len, d_ff=None,
+                 gradient_checkpointing=False):
         super().__init__()
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.num_heads = num_heads
         self.num_layers = num_layers
         self.max_seq_len = max_seq_len
+        self.gradient_checkpointing = gradient_checkpointing
         self.token_embed = nn.Embedding(vocab_size, d_model)
         self.pos_embed = nn.Embedding(max_seq_len, d_model)
         self.blocks = nn.ModuleList([TransformerBlock(d_model, num_heads, d_ff) for _ in range(num_layers)])
@@ -91,7 +94,15 @@ class GPT(nn.Module):
         positions = torch.arange(seq_len, device=idx.device)
         x = self.token_embed(idx) + self.pos_embed(positions)
         for block in self.blocks:
-            x = block(x)
+            if self.gradient_checkpointing and self.training:
+                # recomputes each block's activations during backward instead of keeping all
+                # num_layers of them resident at once -- trades ~30% more compute for a large
+                # cut in peak memory, the difference between fitting on an 8GB card and not.
+                # No dropout anywhere in this model, so recomputation is exactly deterministic;
+                # nothing here depends on preserve_rng_state.
+                x = torch.utils.checkpoint.checkpoint(block, x, use_reentrant=False)
+            else:
+                x = block(x)
         x = self.ln_f(x)
         return self.head(x)
 
@@ -106,6 +117,6 @@ CONFIG_124M = dict(vocab_size=50257, d_model=768, num_heads=12, num_layers=12, m
 CONFIG_406M = dict(vocab_size=50257, d_model=1024, num_heads=16, num_layers=28, max_seq_len=2048)
 
 
-def build_model(config, device, seed=42):
+def build_model(config, device, seed=42, gradient_checkpointing=False):
     torch.manual_seed(seed)
-    return GPT(**config).to(device)
+    return GPT(**config, gradient_checkpointing=gradient_checkpointing).to(device)

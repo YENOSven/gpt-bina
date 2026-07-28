@@ -62,10 +62,11 @@ def make_optimizer(model):
 def run_training(
     config_name, corpus_path, total_steps, warmup_steps, micro_batch_size, grad_accum_steps,
     save_path, checkpoint_every, resume_from=None, device=None, seed=42, session_step_limit=None,
+    gradient_checkpointing=False,
 ):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     config = CONFIGS[config_name]
-    model = build_model(config, device, seed=seed)
+    model = build_model(config, device, seed=seed, gradient_checkpointing=gradient_checkpointing)
     optimizer = make_optimizer(model)
 
     step = 0
@@ -132,6 +133,10 @@ def _cli():
                     help="stop after this many steps THIS invocation, without changing "
                          "--total-steps (which stays fixed as the LR schedule's target for "
                          "the whole run, exactly like a daily Colab session vs. the overall run)")
+    p.add_argument("--gradient-checkpointing", action="store_true",
+                    help="recompute activations during backward instead of storing them -- "
+                         "cuts peak memory substantially at the cost of ~30%% more compute; "
+                         "use on VRAM-constrained GPUs (e.g. local fallback on an 8GB card)")
     args = p.parse_args()
 
     losses, _, _ = run_training(
@@ -140,6 +145,7 @@ def _cli():
         grad_accum_steps=args.grad_accum_steps, save_path=args.save_path,
         checkpoint_every=args.checkpoint_every, resume_from=args.resume_from,
         device=args.device, seed=args.seed, session_step_limit=args.session_step_limit,
+        gradient_checkpointing=args.gradient_checkpointing,
     )
     print(f"ran {len(losses)} step(s), final loss {losses[-1]:.6f}" if losses else "no steps ran")
     if args.log_path:
