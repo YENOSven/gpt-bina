@@ -72,7 +72,7 @@ def run_training(
     global_token_cursor = 0
     wall_clock_seconds_trained = 0.0
     if resume_from is not None:
-        state = ckpt.try_resume(resume_from, model, optimizer, map_location=device)
+        state = ckpt.try_resume(resume_from, model, optimizer)
         if state is not None:
             step = state["step"] + 1
             global_token_cursor = state["global_token_cursor"]
