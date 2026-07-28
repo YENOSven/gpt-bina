@@ -109,38 +109,61 @@ def ingest_source(manifest, source_name, shard_dir, tokens_per_shard, max_tokens
     return tokens_this_call
 
 
+def _split_into_documents(tokens):
+    """Splits a shard's flat EOT-separated token array into a list of document arrays, using
+    vectorized numpy slicing (np.where + array slices) rather than a Python-level loop over
+    every token -- the same split, but the difference between milliseconds and minutes once a
+    shard has millions of tokens."""
+    eot_positions = np.where(tokens == EOT)[0]
+    docs = []
+    start = 0
+    for eot_pos in eot_positions:
+        if eot_pos > start:
+            docs.append(tokens[start:eot_pos])
+        start = eot_pos + 1
+    if start < len(tokens):
+        docs.append(tokens[start:])
+    return docs
+
+
 def combine_shards_to_corpus(manifest, source_names, shard_dir, phase, out_path, seed=42):
-    """One-time (non-resumable, meant to be re-run from scratch if interrupted -- it's fast
-    relative to ingestion) step: reads every already-ingested shard for `phase` across the
-    given sources, splits back into documents on EOT, shuffles document order across ALL
-    sources together (so e.g. FineWeb-Edu and OpenWebText pages interleave rather than
-    appearing in source-sized blocks), and concatenates into one flat uint16 file -- same
-    format module 30 already proved (np.memmap-compatible, EOT-separated documents)."""
+    """One-time (non-resumable, meant to be re-run from scratch if interrupted) step: writes
+    the final training-ready corpus_<phase>.bin by shuffling shard order across all sources,
+    then a smaller local shuffle of the documents within each shard, streaming straight to
+    `out_path` one shard at a time.
+
+    NOT a full global shuffle of every individual document -- deliberately, after a real bug:
+    the first version of this function read every document into a Python list of Python ints,
+    holding the WHOLE corpus as native Python objects at once. That's fine at the toy scale it
+    was tested at, but at real scale (billions of tokens) it needs 50-100x more memory than the
+    packed data actually occupies (a Python int is ~28 bytes vs. 2 bytes packed), which was
+    observed forcing heavy OS-level disk paging on a real ~6.5B-token run. Shuffling at the
+    shard level (a few hundred shards, not millions of documents) plus a within-shard document
+    shuffle keeps peak memory bounded to one shard's size (~tokens_per_shard * 2 bytes)
+    regardless of total corpus size, while still interleaving every source throughout the
+    output -- shard-level shuffling is a standard tradeoff real large-scale pipelines make for
+    exactly this reason, not a shortcut unique to this project."""
     import random
 
-    all_docs = []
+    rng = random.Random(seed)
+
+    shard_refs = []  # (source_name, phase, shard_filename)
     for source_name in source_names:
         entry = manifest[source_name]
         for shard in entry["shards_written"][phase]:
-            tokens = np.fromfile(os.path.join(shard_dir, shard["filename"]), dtype=np.uint16)
-            doc = []
-            for token_id in tokens:
-                if token_id == EOT:
-                    if doc:
-                        all_docs.append(doc)
-                    doc = []
-                else:
-                    doc.append(int(token_id))
-            if doc:
-                all_docs.append(doc)
+            shard_refs.append(shard["filename"])
+    rng.shuffle(shard_refs)
 
-    random.Random(seed).shuffle(all_docs)
+    total_tokens = 0
+    eot_bytes = np.array([EOT], dtype=np.uint16).tobytes()
+    with open(out_path, "wb") as out_f:
+        for shard_filename in shard_refs:
+            tokens = np.fromfile(os.path.join(shard_dir, shard_filename), dtype=np.uint16)
+            docs = _split_into_documents(tokens)
+            rng.shuffle(docs)
+            for doc in docs:
+                out_f.write(doc.tobytes())
+                out_f.write(eot_bytes)
+                total_tokens += len(doc) + 1
 
-    stream = []
-    for doc in all_docs:
-        stream.extend(doc)
-        stream.append(EOT)
-
-    tokens = np.array(stream, dtype=np.uint16)
-    tokens.tofile(out_path)
-    return len(tokens)
+    return total_tokens
