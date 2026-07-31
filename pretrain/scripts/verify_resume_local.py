@@ -31,7 +31,7 @@ CORPUS_TOKENS = 20_000  # small enough to exercise the sequential-cursor wrap-ar
 
 def run(args):
     result = subprocess.run(
-        [sys.executable, "-m", "columbina_pretrain.train", *args],
+        [sys.executable, "-m", "bina_pretrain.train", *args],
         cwd=PRETRAIN_DIR, capture_output=True, text=True,
     )
     if result.returncode != 0:

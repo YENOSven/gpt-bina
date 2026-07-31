@@ -15,11 +15,8 @@ The repo has two parts:
   implementation, a resumable checkpointing layer, a streaming data pipeline, and the training
   loop that combines them, built to survive being killed mid-run, resumed across sessions, and
   scaled from a laptop GPU to Google Colab Pro.
-- **[`learning/`](learning/) + `docs/LEARNING_LOG.md`** — the 33-module curriculum that built
-  up to it, one notebook per concept, each with a verification step rather than a bare
-  assertion that the code "works." A parallel 11-part track in [`experiments/`](experiments/)
-  explores biologically-inspired (Hebbian/spiking) learning as a point of comparison against
-  standard backprop.
+- **[`learning/`](learning/)** — the 33-module, from-first-principles curriculum that built the
+  understanding behind it (details below).
 
 ## The production pipeline (`pretrain/`)
 
@@ -78,11 +75,14 @@ fused/flash-attention kernels) with three configs:
 
 See [`pretrain/README.md`](pretrain/README.md) for full status and architecture notes.
 
-## The curriculum behind it (`learning/`, `docs/LEARNING_LOG.md`)
+## The curriculum behind it (`learning/`)
 
-33 self-contained notebooks, each implementing one concept from first principles and verifying
-it — against a hand-computed derivative, a reference PyTorch/HuggingFace implementation, or a
-measured before/after — rather than asserting it works:
+The real motivation for this project was learning, not shipping — I wanted to actually
+understand how an LLM is trained, not just call a library. So before writing the production
+system above, I worked backward from a working transformer to first principles across 33
+self-contained notebooks, each implementing one concept and *proving* it works — against a
+hand-computed derivative, a reference PyTorch/HuggingFace implementation, or a measured
+before/after — rather than asserting it does:
 
 | Phase | Covers |
 |---|---|
@@ -90,32 +90,26 @@ measured before/after — rather than asserting it works:
 | 2 — Language modeling fundamentals | N-gram/bigram models, perplexity, token embeddings, a neural n-gram model |
 | 3 — The transformer, piece by piece | Scaled dot-product & multi-head attention, positional encoding, LayerNorm, residual connections, the feed-forward block, then a full nanoGPT trained on text |
 | 4 — Scaling toward a real LLM | A from-scratch BPE tokenizer, production tokenizers, large-corpus data pipelines, mixed precision, gradient accumulation, AdamW, LR schedules, gradient clipping, Colab compute budgeting |
-| 5 — The real pretrain & specialization | Sampling strategies, KV-caching, the real pretraining corpus and training run (124M params, matching the public GPT-2-small parameter count exactly), instruction fine-tuning, DPO |
+| 5 — The real pretrain | Sampling strategies, KV-caching, the real pretraining corpus and training run (124M params, matching the public GPT-2-small parameter count exactly), instruction fine-tuning, DPO |
 
-Full module-by-module log with results: **[`docs/LEARNING_LOG.md`](docs/LEARNING_LOG.md)**.
-
-A parallel 11-part track in [`experiments/`](experiments/) builds a small conversational agent
-three separate ways — standard backprop, biologically-inspired Hebbian learning on
-leaky-integrate-and-fire neurons, and a three-factor (local-tag + global-reward) learning rule —
-and reports honest, measured accuracy comparisons across all three, including where the
-biologically-plausible approaches fall short. Details in the same log.
+Full summary of what each phase covers and what it proved: **[`learning/README.md`](learning/README.md)**.
 
 ## Repo layout
 
 ```
 gpt-bina/
-├── pretrain/                    # the production training system
-│   ├── columbina_pretrain/      # importable package: model, tokenizer, data pipeline, checkpointing, train/SFT loops
-│   ├── configs/                 # model + data-mix configs
-│   ├── colab/                   # notebooks run on Google Colab (GPU training, data prep)
-│   ├── local/                   # notebooks that need this machine's local GPU/model files
-│   ├── scripts/                 # verification and sync scripts
-│   ├── tests/                   # pytest suite
-│   └── README.md                # architecture + status detail
-├── learning/                    # 33-module from-scratch curriculum (one notebook each)
-├── experiments/                 # 11-part biologically-inspired learning track
-└── docs/
-    └── LEARNING_LOG.md          # full module-by-module log with verified results
+├── pretrain/               # the production training system
+│   ├── bina_pretrain/      # importable package: model, tokenizer, data pipeline, checkpointing, train/SFT loops
+│   ├── configs/             # model + data-mix configs
+│   ├── colab/                # notebooks run on Google Colab (GPU training, data prep)
+│   ├── local/                # notebooks that need this machine's local GPU/model files
+│   ├── scripts/               # verification and sync scripts
+│   ├── tests/                 # pytest suite
+│   └── README.md              # architecture + status detail
+├── learning/               # summary of the 33-module from-scratch curriculum
+│   └── README.md
+├── LICENSE
+└── README.md
 ```
 
 ## Tech stack
@@ -143,8 +137,8 @@ python -m pytest tests/
 python scripts/verify_resume_local.py
 ```
 
-Each notebook under `learning/` and `experiments/` is self-contained and runs top to bottom in
-Jupyter or Colab on its own — open any `module_XX/*.ipynb` directly.
+See [`learning/README.md`](learning/README.md) for a summary of the from-scratch curriculum that
+led here.
 
 ## License
 

@@ -15,9 +15,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # pretrain/
 
-from columbina_pretrain import data_manifest as dm
-from columbina_pretrain import data_pipeline as dp
-from columbina_pretrain.tokenizer import EOT, decode
+from bina_pretrain import data_manifest as dm
+from bina_pretrain import data_pipeline as dp
+from bina_pretrain.tokenizer import EOT, decode
 
 SCRATCH = tempfile.mkdtemp(prefix="data_pipeline_verify_")
 SHARD_DIR = os.path.join(SCRATCH, "shards")

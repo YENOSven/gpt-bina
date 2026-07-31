@@ -113,7 +113,7 @@ CONFIG_TINY = dict(vocab_size=50257, d_model=64, num_heads=4, num_layers=2, max_
 # GPT-2-small (module_31's smoke-test scale) — kept for cheap local tests
 CONFIG_124M = dict(vocab_size=50257, d_model=768, num_heads=12, num_layers=12, max_seq_len=1024)
 
-# the real Columbina target size (~406M params) — see pretrain/configs/model_400m.yaml
+# the real Bina target size (~406M params) — see pretrain/configs/model_400m.yaml
 CONFIG_406M = dict(vocab_size=50257, d_model=1024, num_heads=16, num_layers=28, max_seq_len=2048)
 
 

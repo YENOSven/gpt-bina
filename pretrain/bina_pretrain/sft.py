@@ -3,15 +3,15 @@ import json
 import torch
 import torch.nn.functional as F
 
-from columbina_pretrain.tokenizer import COLUMBINA_MARKER, EOT, SYSTEM_MARKER, USER_MARKER, encode
+from bina_pretrain.tokenizer import BINA_MARKER, EOT, SYSTEM_MARKER, USER_MARKER, encode
 
-_ROLE_MARKERS = {"system": SYSTEM_MARKER, "user": USER_MARKER, "assistant": COLUMBINA_MARKER}
+_ROLE_MARKERS = {"system": SYSTEM_MARKER, "user": USER_MARKER, "assistant": BINA_MARKER}
 
 
 def build_example(messages):
     """messages: [{"role": "system"|"user"|"assistant", "content": str}, ...] -- the sibling
-    Columbina project's exact JSONL shape. Returns (token_ids, loss_mask) of equal length;
-    mask[i]=1 iff token_ids[i] is content belonging to an 'assistant' (Columbina) turn, the
+    Bina project's exact JSONL shape. Returns (token_ids, loss_mask) of equal length;
+    mask[i]=1 iff token_ids[i] is content belonging to an 'assistant' (Bina) turn, the
     only tokens the model is trained to predict. Role markers themselves are never loss-active
     -- they're part of what the inference harness supplies, not something the model generates
     -- same prompt/response split module 32 established, extended from one pair to N turns."""
@@ -56,7 +56,7 @@ def masked_loss(logits, targets, mask, vocab_size):
 
 
 def load_jsonl_examples(path):
-    """Loads the sibling Columbina project's {"messages": [...]} JSONL format directly --
+    """Loads the sibling Bina project's {"messages": [...]} JSONL format directly --
     same shape reused as-is, no reformatting needed at the file level."""
     examples = []
     with open(path, encoding="utf-8") as f:

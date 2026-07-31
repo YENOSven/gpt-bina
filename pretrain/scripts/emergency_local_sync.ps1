@@ -2,8 +2,8 @@ param(
     [ValidateSet("Pull", "Push")]
     [string]$Direction = "Pull",
     [string]$RemoteName = "gdrive",
-    [string]$DrivePath = "Columbina_Pretrain",
-    [string]$LocalRoot = "C:\Columbina_Emergency_Local",
+    [string]$DrivePath = "Bina_Pretrain",
+    [string]$LocalRoot = "C:\Bina_Emergency_Local",
     [string]$Stage = "pretrain",
     [switch]$IncludeCorpus
 )

@@ -1,5 +1,5 @@
 # ~406M params: D_MODEL=1024, NUM_HEADS=16, NUM_LAYERS=28, BLOCK_SIZE=2048
-# (see columbina_pretrain.model.CONFIG_406M for the exact loaded values -- this file documents
+# (see bina_pretrain.model.CONFIG_406M for the exact loaded values -- this file documents
 # the target and the run-level hyperparameters that sit alongside the architecture, not a
 # second source of truth for the architecture itself)
 model:

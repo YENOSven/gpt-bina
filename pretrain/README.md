@@ -1,10 +1,10 @@
-# pretrain/ — the real Columbina training system
+# pretrain/ — the real Bina training system
 
-This is production code, not a curriculum module: `learning/module_01-33` taught every
-individual technique (attention, tokenizer, data pipeline, mixed precision, checkpointing,
-SFT masking, DPO) and each notebook stays self-contained on purpose. This package is where
-those techniques actually get run for real, over a real multi-month training schedule, so it
-needs one shared, editable source of truth instead of N re-pasted copies. Scope decisions,
+This is production code, not a curriculum module: [`../learning/`](../learning/) covers the
+33-part first-principles curriculum (attention, tokenizer, data pipeline, mixed precision,
+checkpointing, SFT masking, DPO) that this package's techniques were learned from. This package
+is where those techniques actually get run for real, over a real multi-month training schedule,
+so it needs one shared, editable source of truth instead of N re-pasted copies. Scope decisions,
 cost/risk analysis, and the reasoning behind every number below came out of an internal
 planning doc that isn't part of this repo.
 
@@ -109,10 +109,10 @@ including both driving notebooks. Ready to actually run.**
   original 2.5B target. Per the plan's pre-approved contingency, `natural_dialogue`'s target
   shrunk to its real achievable size and `general_english` grew to absorb the difference —
   total pretraining budget stays ~6.5B tokens.
-- `generate_sft_data.py` — local generation of new Columbina SFT data via `llama_cpp_python`,
+- `generate_sft_data.py` — local generation of new Bina SFT data via `llama_cpp_python`,
   loading the base `Qwen2.5-7B-Instruct-Q4_K_M` GGUF + the real
-  `columbina-qwen25-7b-dpo-v11` LoRA adapter (both already in `C:\Models\`), self-play (same
-  model plays both "user" and "Columbina" under different system prompts) seeded from a
+  `bina-qwen25-7b-dpo-v11` LoRA adapter (both already in `C:\Models\`), self-play (same
+  model plays both "user" and "Bina" under different system prompts) seeded from a
   scenario bank covering both the general "teacher-generated" category and all five
   "difficult examples" sub-categories. **Verified with real generated output** — confirmed GPU
   offload (~30 tok/s real decode throughput on the local 4060, matching the plan's estimate),
@@ -149,7 +149,7 @@ stretch), local inference script (Phase 6). GitHub remote is set up
 
 ## Layout
 
-- `columbina_pretrain/` — the importable package (see docstrings/comments in each file for
+- `bina_pretrain/` — the importable package (see docstrings/comments in each file for
   what's genuinely non-obvious; the code itself is the reference for what each does).
 - `configs/` — `model_400m.yaml` (not yet wired to code — `train.py`'s CLI args are the real
   interface for now) and `data_mix.yaml` (wired to `data_pipeline.py` via
@@ -157,7 +157,7 @@ stretch), local inference script (Phase 6). GitHub remote is set up
   and `local/phase2_generate_sft_data.ipynb`).
 - `colab/phase2_data_prep.ipynb` — Phase 2 data ingestion (CPU-only Colab runtime).
 - `colab/phase3_pretrain_training.ipynb` — Phase 3's real GPU training run.
-- `local/phase2_generate_sft_data.ipynb` — Phase 2's local Columbina SFT-data generation
+- `local/phase2_generate_sft_data.ipynb` — Phase 2's local Bina SFT-data generation
   (needs this machine's GPU + local model files, never runs in Colab).
 - `scripts/verify_resume_local.py`, `verify_data_pipeline.py` — run these after touching the
   respective module; they're the standing proofs those mechanisms still work.

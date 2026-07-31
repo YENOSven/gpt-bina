@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 
-from columbina_pretrain import data_pipeline as dp
-from columbina_pretrain.tokenizer import EOT
+from bina_pretrain import data_pipeline as dp
+from bina_pretrain.tokenizer import EOT
 
 
 def _write_shard(shard_dir, filename, docs):

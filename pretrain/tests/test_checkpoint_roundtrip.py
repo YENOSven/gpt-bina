@@ -2,9 +2,9 @@ import os
 
 import torch
 
-from columbina_pretrain import checkpoint as ckpt
-from columbina_pretrain.model import CONFIG_TINY, build_model
-from columbina_pretrain.train import make_optimizer
+from bina_pretrain import checkpoint as ckpt
+from bina_pretrain.model import CONFIG_TINY, build_model
+from bina_pretrain.train import make_optimizer
 
 
 def _train_one_step(model, optimizer):

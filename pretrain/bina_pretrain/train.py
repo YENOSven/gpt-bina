@@ -7,8 +7,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from columbina_pretrain import checkpoint as ckpt
-from columbina_pretrain.model import CONFIG_124M, CONFIG_406M, CONFIG_TINY, build_model
+from bina_pretrain import checkpoint as ckpt
+from bina_pretrain.model import CONFIG_124M, CONFIG_406M, CONFIG_TINY, build_model
 
 PEAK_LR = 6e-4
 WEIGHT_DECAY = 0.1

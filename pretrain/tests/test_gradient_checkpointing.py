@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from columbina_pretrain.model import CONFIG_124M, build_model
+from bina_pretrain.model import CONFIG_124M, build_model
 
 
 def test_checkpointed_forward_matches_normal_forward_exactly():
@@ -40,7 +40,7 @@ def test_gradient_checkpointing_off_by_default_and_inert_in_eval_mode():
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="memory-reduction claim is only meaningful on real CUDA")
 def test_gradient_checkpointing_reduces_peak_cuda_memory():
-    from columbina_pretrain.model import CONFIG_406M
+    from bina_pretrain.model import CONFIG_406M
 
     def peak_after_one_step(gradient_checkpointing):
         torch.cuda.empty_cache()

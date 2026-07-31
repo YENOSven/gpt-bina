@@ -1,7 +1,7 @@
 import os
 
-from columbina_pretrain import data_manifest as dm
-from columbina_pretrain import data_pipeline as dp
+from bina_pretrain import data_manifest as dm
+from bina_pretrain import data_pipeline as dp
 
 MIX_YAML_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "configs", "data_mix.yaml")
 

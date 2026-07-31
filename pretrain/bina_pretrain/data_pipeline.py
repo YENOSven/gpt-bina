@@ -4,8 +4,8 @@ import numpy as np
 import yaml
 from datasets import load_dataset
 
-from columbina_pretrain import data_manifest as dm
-from columbina_pretrain.tokenizer import EOT, encode
+from bina_pretrain import data_manifest as dm
+from bina_pretrain.tokenizer import EOT, encode
 
 # stage_1_pretrain categories in configs/data_mix.yaml use one of two ways to size a source's
 # individual target from its category total: "fraction" (general_english: split a big shared

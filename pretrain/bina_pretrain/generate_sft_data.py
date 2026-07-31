@@ -9,9 +9,9 @@ from llama_cpp import Llama
 
 # overridable via --character-yaml/--base-model/--lora, or these env vars, so no local
 # machine path needs to be hardcoded here
-DEFAULT_CHARACTER_YAML = os.environ.get("COLUMBINA_CHARACTER_YAML", "config/character.yaml")
-DEFAULT_BASE_MODEL = os.environ.get("COLUMBINA_BASE_MODEL_GGUF", "models/base-model.gguf")
-DEFAULT_LORA = os.environ.get("COLUMBINA_LORA_GGUF", "models/columbina-lora.gguf")
+DEFAULT_CHARACTER_YAML = os.environ.get("BINA_CHARACTER_YAML", "config/character.yaml")
+DEFAULT_BASE_MODEL = os.environ.get("BINA_BASE_MODEL_GGUF", "models/base-model.gguf")
+DEFAULT_LORA = os.environ.get("BINA_LORA_GGUF", "models/bina-lora.gguf")
 
 # lightweight heuristic filter, not the sibling project's full 34-category taxonomy-scored
 # review pass (that needs a second LLM call per example -- real future work, not built here;
@@ -24,7 +24,7 @@ REJECT_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [
 ]]
 
 USER_SYSTEM_PROMPT = (
-    "You are role-playing an ordinary person chatting with a friend named Columbina. "
+    "You are role-playing an ordinary person chatting with a friend named Bina. "
     "Write only your next message as this person -- natural, casual, in-character for "
     "whatever mood/scenario you're given. No labels, no narration, just the message."
 )
@@ -32,12 +32,12 @@ USER_SYSTEM_PROMPT = (
 GENERAL_SCENARIOS = [
     "asking for advice on a mundane life problem (cooking, chores, a small decision)",
     "sharing something that happened at work or school today",
-    "asking Columbina's opinion about a hobby or interest",
+    "asking Bina's opinion about a hobby or interest",
     "casual small talk about the weather or the day",
-    "asking Columbina to explain something she might know about (history, nature, an old custom)",
+    "asking Bina to explain something she might know about (history, nature, an old custom)",
     "venting lightly about a minor annoyance",
     "planning something together (a trip, a meal, an evening)",
-    "asking a curious personal question about Columbina herself",
+    "asking a curious personal question about Bina herself",
     "sharing good news and wanting to celebrate",
     "asking for a recommendation (a book, a show, a place)",
 ]
@@ -46,13 +46,13 @@ DIFFICULT_SCENARIOS = {
     "topic_change": "start on one ordinary topic, then abruptly change to a completely "
                      "unrelated topic mid-conversation",
     "vague_message": "send a deliberately vague, ambiguous, or underspecified message that "
-                      "requires Columbina to ask for clarification or make a judgment call",
+                      "requires Bina to ask for clarification or make a judgment call",
     "emotional_response": "express a strong, specific emotion (frustration, sadness, "
                            "excitement, anxiety) about something concrete",
     "short_reply": "give only very short, terse replies (a few words) throughout, testing "
-                    "whether Columbina over-explains or matches the register",
+                    "whether Bina over-explains or matches the register",
     "repetition_avoidance": "ask a similar or repeated question/phrase more than once in the "
-                             "conversation, testing whether Columbina's replies stay varied "
+                             "conversation, testing whether Bina's replies stay varied "
                              "instead of repeating the same phrasing",
 }
 
@@ -69,11 +69,11 @@ def is_low_quality(text):
     return any(p.search(text) for p in REJECT_PATTERNS)
 
 
-def generate_conversation(llm, columbina_system_prompt, scenario_instruction, n_turns, temperature=0.85):
+def generate_conversation(llm, bina_system_prompt, scenario_instruction, n_turns, temperature=0.85):
     """Self-play: the same local model plays both roles under different system prompts,
-    alternating user -> columbina -> user -> columbina turns. Returns None (caller should
+    alternating user -> bina -> user -> bina turns. Returns None (caller should
     skip/retry) if any turn fails the quality filter."""
-    messages = [{"role": "system", "content": columbina_system_prompt}]
+    messages = [{"role": "system", "content": bina_system_prompt}]
     user_history = [{"role": "system", "content": f"{USER_SYSTEM_PROMPT} Scenario: {scenario_instruction}."}]
 
     for _ in range(n_turns):
@@ -84,12 +84,12 @@ def generate_conversation(llm, columbina_system_prompt, scenario_instruction, n_
         messages.append({"role": "user", "content": user_text})
         user_history.append({"role": "assistant", "content": user_text})
 
-        columbina_out = llm.create_chat_completion(messages=messages, max_tokens=150, temperature=temperature)
-        columbina_text = columbina_out["choices"][0]["message"]["content"].strip()
-        if is_low_quality(columbina_text):
+        bina_out = llm.create_chat_completion(messages=messages, max_tokens=150, temperature=temperature)
+        bina_text = bina_out["choices"][0]["message"]["content"].strip()
+        if is_low_quality(bina_text):
             return None
-        messages.append({"role": "assistant", "content": columbina_text})
-        user_history.append({"role": "user", "content": columbina_text})
+        messages.append({"role": "assistant", "content": bina_text})
+        user_history.append({"role": "user", "content": bina_text})
 
     return messages
 
@@ -103,7 +103,7 @@ def count_existing(out_path):
 
 def run(category, out_path, n_conversations, n_turns, seed, character_yaml_path, base_model_path, lora_path):
     random.seed(seed)
-    columbina_system_prompt = load_system_prompt(character_yaml_path)
+    bina_system_prompt = load_system_prompt(character_yaml_path)
     llm = Llama(model_path=base_model_path, lora_path=lora_path, n_gpu_layers=-1, n_ctx=2048, verbose=False)
 
     existing = count_existing(out_path)
@@ -118,7 +118,7 @@ def run(category, out_path, n_conversations, n_turns, seed, character_yaml_path,
             else:
                 mode, scenario_instruction = random.choice(list(DIFFICULT_SCENARIOS.items()))
 
-            messages = generate_conversation(llm, columbina_system_prompt, scenario_instruction, n_turns)
+            messages = generate_conversation(llm, bina_system_prompt, scenario_instruction, n_turns)
             if messages is None:
                 rejected += 1
                 continue

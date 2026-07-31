@@ -1,6 +1,6 @@
 param(
     [string]$RemoteName = "gdrive",
-    [string]$DrivePath = "Columbina_Pretrain",
+    [string]$DrivePath = "Bina_Pretrain",
     [string]$LocalRoot = "C:\Models",
     [string[]]$Stages = @("pretrain", "sft", "dpo")
 )
@@ -25,7 +25,7 @@ if ($remotes -notcontains "$($RemoteName):") {
 # schedule you like via Task Scheduler.
 foreach ($stage in $Stages) {
     $source = "$($RemoteName):$DrivePath/$stage/milestones"
-    $dest = Join-Path $LocalRoot "columbina-pretrain-$stage\milestones"
+    $dest = Join-Path $LocalRoot "bina-pretrain-$stage\milestones"
 
     rclone lsf "$source" *>$null
     if ($LASTEXITCODE -ne 0) {

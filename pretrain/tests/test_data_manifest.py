@@ -1,4 +1,4 @@
-from columbina_pretrain import data_manifest as dm
+from bina_pretrain import data_manifest as dm
 
 
 def test_new_entry_starts_in_val_phase_with_correct_targets():
