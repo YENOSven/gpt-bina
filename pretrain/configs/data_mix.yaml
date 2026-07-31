@@ -39,11 +39,13 @@ stage_1_pretrain:
 stage_2_sft:
   reused_columbina_data:
     target_tokens: 2_000_000  # approximate, existing sibling-project data
+    # paths below are local to the machine running ingestion -- point these at wherever
+    # the sibling project's SFT data actually lives; not committed here on purpose
     sources:
-      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/canon/qwen25_v10_sft/train.jsonl"
-      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/canon/qwen25_v10_sft/validation.jsonl"
-      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/gold_examples.jsonl"
-      - "C:/Users/alanl/OneDrive/Documents/Columbina/columbina_chat/data/contrastive_examples.jsonl"
+      - "${COLUMBINA_CHAT_DATA_DIR}/canon/qwen25_v10_sft/train.jsonl"
+      - "${COLUMBINA_CHAT_DATA_DIR}/canon/qwen25_v10_sft/validation.jsonl"
+      - "${COLUMBINA_CHAT_DATA_DIR}/gold_examples.jsonl"
+      - "${COLUMBINA_CHAT_DATA_DIR}/contrastive_examples.jsonl"
   locally_generated_teacher_conversation:
     target_tokens: 20_000_000
     generator: "columbina_pretrain/generate_sft_data.py --category teacher_generated -- local llama.cpp, columbina-qwen25-7b-dpo-v11 + base Qwen2.5-7B-Instruct-Q4_K_M, no API spend"

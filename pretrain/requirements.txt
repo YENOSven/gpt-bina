@@ -1,0 +1,12 @@
+torch>=2.1
+numpy>=1.26
+datasets>=3.1
+tiktoken>=0.7
+tokenizers>=0.20
+pyyaml>=6.0
+pytest>=8.0
+
+# optional: only needed for columbina_pretrain/generate_sft_data.py (local synthetic
+# SFT-data generation via a quantized GGUF model). Needs a CUDA-enabled build to use GPU
+# offload -- see pretrain/README.md.
+# llama-cpp-python>=0.3

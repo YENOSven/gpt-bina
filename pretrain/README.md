@@ -4,10 +4,9 @@ This is production code, not a curriculum module: `learning/module_01-33` taught
 individual technique (attention, tokenizer, data pipeline, mixed precision, checkpointing,
 SFT masking, DPO) and each notebook stays self-contained on purpose. This package is where
 those techniques actually get run for real, over a real multi-month training schedule, so it
-needs one shared, editable source of truth instead of N re-pasted copies. See
-`C:\Users\alanl\.claude\plans\alright-now-lets-start-purring-volcano.md` for the full plan
-this was built from — scope decisions, cost/risk analysis, and the reasoning behind every
-number below live there, not repeated here.
+needs one shared, editable source of truth instead of N re-pasted copies. Scope decisions,
+cost/risk analysis, and the reasoning behind every number below came out of an internal
+planning doc that isn't part of this repo.
 
 **One notebook per phase, not one shared notebook with a mutable stage toggle** — each
 `colab/phaseN_*.ipynb` is independently run and tracked, so progress on one phase never gets
@@ -175,9 +174,7 @@ python -m pytest tests/
 python scripts/verify_resume_local.py
 python scripts/verify_data_pipeline.py   # needs network; may hit HF rate limits on repeat runs
 ```
-`generate_sft_data.py` / `local/phase2_generate_sft_data.ipynb` need `llama_cpp_python` with
-CUDA support — the sibling Columbina project's venv
-(`C:\Users\alanl\OneDrive\Documents\Columbina\columbina_chat\.venv\`) already has a working
-build; a matching Jupyter kernel is registered as `columbina-chat-venv`. Point the notebook at
-that kernel rather than the main environment's `columbina-py311`, unless `llama_cpp_python`
-with CUDA gets installed there too.
+`generate_sft_data.py` / `local/phase2_generate_sft_data.ipynb` need `llama_cpp_python` built
+with CUDA support, which isn't a plain `pip install` on most platforms. If a sibling project's
+venv already has a working CUDA build, register it as its own Jupyter kernel and point the
+notebook at that kernel rather than the main environment.

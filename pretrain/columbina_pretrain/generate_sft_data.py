@@ -7,9 +7,11 @@ import re
 import yaml
 from llama_cpp import Llama
 
-DEFAULT_CHARACTER_YAML = r"C:\Users\alanl\OneDrive\Documents\Columbina\columbina_chat\config\character.yaml"
-DEFAULT_BASE_MODEL = r"C:\Models\Qwen2.5-7B-Instruct-Q4_K_M\qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf"
-DEFAULT_LORA = r"C:\Models\columbina-qwen25-7b-dpo-v11-lora\columbina-qwen25-7b-dpo-v11-lora-f16.gguf"
+# overridable via --character-yaml/--base-model/--lora, or these env vars, so no local
+# machine path needs to be hardcoded here
+DEFAULT_CHARACTER_YAML = os.environ.get("COLUMBINA_CHARACTER_YAML", "config/character.yaml")
+DEFAULT_BASE_MODEL = os.environ.get("COLUMBINA_BASE_MODEL_GGUF", "models/base-model.gguf")
+DEFAULT_LORA = os.environ.get("COLUMBINA_LORA_GGUF", "models/columbina-lora.gguf")
 
 # lightweight heuristic filter, not the sibling project's full 34-category taxonomy-scored
 # review pass (that needs a second LLM call per example -- real future work, not built here;
